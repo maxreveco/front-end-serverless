@@ -35,6 +35,12 @@ ul {
 #submit:disabled {
     background-color: lightgray;
 }
+#meals-list li {
+    cursor: pointer;
+}
 
+.selected {
+    background-color: #eee;
+}
 
 
