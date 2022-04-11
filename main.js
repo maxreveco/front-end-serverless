@@ -1,4 +1,7 @@
 let mealsState = []
+let ruta = 'login' //login, register, orders
+let user = {}
+
 const stringToHtml = (string) => {
     const parser = new DOMParser()
     const doc = parser.parseFromString(string, 'text/html')
@@ -28,8 +31,9 @@ const renderOrder = (order, meals) => {
     return element
 }
 
-window.onload = () => {
+const inicializaFormulario = () => {
     const orderForm = document.getElementById('order')
+    const token = localStorage.getItem('token')
     orderForm.onsubmit = (e) => {
         const submit = document.getElementById('submit')
         submit.setAttribute('disabled', true)
@@ -38,31 +42,32 @@ window.onload = () => {
         const mealIdValue = mealId.value
         if (!mealIdValue) {
             alert('Debe seleccionar un plato')
+            submit.removeAttribute('disabled')
             return
         }
         const order = {
             meal_id: mealIdValue,
-            user_id: 'chanchito feliz!'
+            user_id: user._id,
         }
 
         fetch('https://serverless-maxreveco.vercel.app/api/orders/', {
             method: 'POST',
             headers: {
-                'Content-type': 'application/json'
+                'Content-Type': 'application/json',
+                authorization: token,
             },
             body: JSON.stringify(order)
-        })
-            .then(x => x.json())
+        }).then(x => x.json())
             .then(respuesta => {
                 const renderedOrder = renderOrder(respuesta, mealsState)
                 const ordersList = document.getElementById('orders-list')
                 ordersList.appendChild(renderedOrder)
                 submit.removeAttribute('disabled')
             })
-
-
     }
+}
 
+const inicializaDatos = () => {
     fetch('https://serverless-maxreveco.vercel.app/api/meals/')
         .then(response => response.json())
         .then(data => {
@@ -83,6 +88,67 @@ window.onload = () => {
                     listOrders.forEach(element => ordersList.appendChild(element))
                 })
         })
+}
 
+const renderApp = () => {
+    const token = localStorage.getItem('token')
+    if (token) {
+        user = JSON.parse(localStorage.getItem('user'))
+        return renderOrders()
+    }
+    renderLogin()
+}
+
+const renderOrders = () => {
+    const ordersView = document.getElementById('orders-view')
+    document.getElementById('app').innerHTML = ordersView.innerHTML
+
+    inicializaFormulario()
+    inicializaDatos()
+}
+
+const renderLogin = () => {
+    const loginTemplate = document.getElementById('login-template')
+    document.getElementById('app').innerHTML = loginTemplate.innerHTML
+
+    const loginForm = document.getElementById('login-form')
+    loginForm.onsubmit = (e) => {
+        e.preventDefault()
+        const email = document.getElementById('email').value
+        const password = document.getElementById('password').value
+
+        fetch('https://serverless-maxreveco.vercel.app/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password })
+        })
+            .then(x => x.json())
+            .then(respuesta => {
+                localStorage.setItem('token', respuesta.token)
+                ruta = 'orders'
+                return respuesta.token
+            })
+            .then(token => {
+                return fetch('https://serverless-maxreveco.vercel.app/api/auth/me', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        authorization: token,
+                    },
+                })
+            })
+            .then(x => x.json())
+            .then(fetchedUser => {
+                localStorage.setItem('user', JSON.stringify(fetchedUser))
+                user = fetchedUser
+                renderOrders()
+            })
+    }
+}
+
+window.onload = () => {
+    renderApp()
 
 }
